@@ -1,3 +1,5 @@
+
+
 # Zeep  - XSD/WSDL client code generator for Rust
 
 Generate yaserde annotated structs for Rust based on XSD/WSDL. For WSDL input, client code is generated as well.
@@ -6,6 +8,14 @@ The generated code depends on yaserde (0.8) and yaserde_derive for the XSD-gener
 The generated code does *not* have any dependencies on this library.
 
 Check the examples and the Cargo.toml for a complete list of dependencies.
+
+## MODIFICATIONS IN THIS BRANCH
+
+Some modifications are made, to fix some issues on some custom wsdl/xsd
+# fixed fault soap wrapper, so that generated type is the same as defined in xsd.
+# removed `xmlns` attribute from `soapenv:Body` element.
+# added `tns` prefix attribute to requests and response root element type.
+# provided a way to disable generating top level comments via FileWriter::process_file, useful when thing is generated in build script and imported via macro in custom module.
 
 ## Installation
 

@@ -64,12 +64,12 @@ fn main() {
             "parsing {}/{} --> {}",
             base_path, from_file_name, output_file
         );
-        if let Err(err) = writer.process_file(&base_path, &from_file_name) {
+        if let Err(err) = writer.process_file(&base_path, &from_file_name, true) {
             println!("Failed to process {from_file_name}: {err}")
         }
     } else {
         let mut writer = FileWriter::new(ns_prefix, default_namespace);
-        if let Err(err) = writer.process_file(&base_path, &from_file_name) {
+        if let Err(err) = writer.process_file(&base_path, &from_file_name, true) {
             println!("Failed to process {from_file_name}: {err}")
         }
     }

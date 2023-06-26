@@ -121,9 +121,14 @@ impl FileWriter {
         self.root.add(Element::new_module(SERVICES_MOD));
     }
 
-    pub fn process_file(&mut self, base_path: &str, file_name: &str) -> WriterResult<()> {
+    pub fn process_file(
+        &mut self,
+        base_path: &str,
+        file_name: &str,
+        generate_top_level_comments: bool,
+    ) -> WriterResult<()> {
         self.base_path = PathBuf::from(base_path);
-        self.print_global_header();
+        self.print_global_header(generate_top_level_comments);
         self.print_common_structs();
         self.init_modules();
         self.process_file_in_path(file_name, true)?;
@@ -175,14 +180,17 @@ impl FileWriter {
         module.has_child(type_def)
     }
 
-    fn print_global_header(&mut self) {
+    fn print_global_header(&mut self, generate_top_level_comments: bool) {
         let mut global_header = Element::new("global_header", ElementType::Static);
-        global_header.set_content(SIGNATURE);
-        global_header.append_content(format!("//! version: {}\n//!\n", VERSION).as_str());
+        if generate_top_level_comments {
+            global_header.set_content(SIGNATURE);
+            global_header.append_content(format!("//! version: {}\n//!\n", VERSION).as_str());
+            global_header.append_content(r"#![allow(dead_code)]\n#![allow(unused_imports)]");
+        } else {
+            global_header.set_content("");
+        };
         global_header.append_content(
             r#"
-            #![allow(dead_code)]           
-            #![allow(unused_imports)]
             use yaserde_derive::{YaSerialize, YaDeserialize};
             use std::io::{Read, Write};
             use log::{warn, debug};
@@ -1146,7 +1154,7 @@ impl FileWriter {
     }
 
     fn fault_soap_wrapper(&self, fault_name: &str, fault_type: &str, parent: &mut Element) {
-        let soap_fault_name = format!("Soap{}", fault_name);
+        let soap_fault_name = format!("Soap{}", fault_type);
 
         let mut e = Element::new(&soap_fault_name, ElementType::Struct);
         e.xml_name = Option::Some("Fault".to_string());
@@ -1268,7 +1276,7 @@ impl FileWriter {
                 Option::Some(format!(
                     r#"#[derive(Debug, Default, YaSerialize, YaDeserialize)]
                     pub struct {0} {{
-                        #[yaserde(rename = "{3}", default)]
+                        #[yaserde(rename = "{3}", prefix = "{5}", default)]
                         pub body: {2}::{1},
                         #[yaserde(attribute)]
                         pub xmlns: Option<String>,
@@ -1280,7 +1288,8 @@ impl FileWriter {
                     PORTS_MOD,
                     // this should be renamed when renaming is used
                     message_type_name,
-                    self.construct_soap_wrapper(input_type.as_str(), input_soap_name.as_str())
+                    self.construct_soap_wrapper(input_type.as_str(), input_soap_name.as_str()),
+                    self.ns_prefix,
                 ))
             } else {
                 Option::None
@@ -1331,7 +1340,7 @@ impl FileWriter {
                 Option::Some(format!(
                     r#"#[derive(Debug, Default, YaSerialize, YaDeserialize)]
                     pub struct {0} {{
-                    #[yaserde(rename = "{3}", default)]
+                    #[yaserde(rename = "{3}", prefix = "{6}" default)]
                     pub body: {2}::{1},
                     {4}
                 }}
@@ -1343,6 +1352,7 @@ impl FileWriter {
                     output_xml_type,
                     soap_fault,
                     self.construct_soap_wrapper(output_type.as_str(), output_soap_name.as_str()),
+                    self.ns_prefix,
                 ))
             } else {
                 Option::None
@@ -1434,10 +1444,7 @@ impl FileWriter {
             Some(sa) => sa.to_string(),
         };
 
-        let xmlns = match &self.target_name_space {
-            None => "Option::None".to_string(),
-            Some(tns) => format!("Option::Some(\"{}\".to_string())", tns),
-        };
+        let xmlns = "Option::None".to_string();
 
         parent.append_content(
             format!(
@@ -1575,7 +1582,7 @@ mod test_xsd {
     ) -> String {
         let mut buffer = DebugBuffer::default();
         let mut fw = FileWriter::new_buffer(ns_prefix, default_ns, buffer.clone());
-        fw.process_file(base_path, filename)
+        fw.process_file(base_path, filename, true)
             .expect("can not open xsd");
 
         let mut result = String::new();
@@ -1670,7 +1677,7 @@ mod test_wsdl {
     fn prepare_output(ns_prefix: Option<String>, default_ns: Option<String>) -> String {
         let mut buffer = DebugBuffer::default();
         let mut fw = FileWriter::new_buffer(ns_prefix, default_ns, buffer.clone());
-        fw.process_file("../resources/temp_converter/", "tempconverter.wsdl")
+        fw.process_file("../resources/temp_converter/", "tempconverter.wsdl", true)
             .expect("can not open wsdl");
 
         let mut result = String::new();
