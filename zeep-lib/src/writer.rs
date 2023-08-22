@@ -1551,8 +1551,11 @@ impl FileWriter {
         e.append_content(
             format!(
                 r#"
-            pub fn new_client(credentials: Option<(String, String)>) -> {2}::{1} {{
-                {2}::{1}::new("{0}", credentials)
+            pub fn new_client(url: Option<String>, credentials: Option<(String, String)>) -> {2}::{1} {{
+                match url {{
+                    Some(url) => {2}::{1}::new(&url, credentials),
+                    None => {2}::{1}::new("{0}", credentials),
+                }}
             }}
         "#,
                 location,
